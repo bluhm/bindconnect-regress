@@ -34,14 +34,19 @@
 int fd_base;
 unsigned int fd_num = 100;
 unsigned int run_time = 10;
+unsigned int socket_num = 1, close_num = 1, bind_num = 1;
 
 static void __dead
 usage(void)
 {
-	fprintf(stderr, "bindstress [-n num] [-t time]\n"
-	    "	-n num   number of sockets, default %u\n"
-	    "	-t time  run time in seconds, default %u\n",
-	    fd_num, run_time);
+	fprintf(stderr,
+	    "bindstress [-b bind] [-c close] [-n num] [-s socket] [-t time]\n"
+	    "    -b bind    threads binding sockets, default %u\n"
+	    "    -c close   threads closing sockets, default %u\n"
+	    "    -n num     number of file descriptors, default %u\n"
+	    "    -s socket  threads creating sockets, default %u\n"
+	    "    -t time    run time in seconds, default %u\n",
+	    bind_num, close_num, fd_num, socket_num, run_time);
 	exit(2);
 }
 
@@ -54,7 +59,7 @@ sintosa(struct sockaddr_in *sin)
 static void *
 thread_socket(void *arg)
 {
-	int *run = arg;
+	volatile int *run = arg;
 
 	while (*run) {
 		socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -65,7 +70,7 @@ thread_socket(void *arg)
 static void *
 thread_close(void *arg)
 {
-	int *run = arg;
+	volatile int *run = arg;
 	int fd;
 
 	while (*run) {
@@ -78,7 +83,7 @@ thread_close(void *arg)
 static void *
 thread_bind(void *arg)
 {
-	int *run = arg;
+	volatile int *run = arg;
 	int fd;
 	struct sockaddr_in sin;
 
@@ -98,21 +103,37 @@ int
 main(int argc, char *argv[])
 {
 	struct rlimit rlim;
-	pthread_t tsocket, tbind, tclose;
+	pthread_t *tsocket, *tbind, *tclose;
 	const char *errstr;
 	int ch, run;
+	unsigned int n;
 
 	fd_base = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (fd_base < 0)
 		err(1, "socket fd_base");
 
-	while ((ch = getopt(argc, argv, "t:")) != -1) {
+	while ((ch = getopt(argc, argv, "b:c:n:s:t:")) != -1) {
 		switch (ch) {
+		case 'b':
+			bind_num = strtonum(optarg, 0, UINT_MAX, &errstr);
+			if (errstr != NULL)
+				errx(1, "bind is %s: %s", errstr, optarg);
+			break;
+		case 'c':
+			close_num = strtonum(optarg, 0, UINT_MAX, &errstr);
+			if (errstr != NULL)
+				errx(1, "close is %s: %s", errstr, optarg);
+			break;
 		case 'n':
 			fd_num = strtonum(optarg, 1, INT_MAX - fd_base,
 			    &errstr);
 			if (errstr != NULL)
 				errx(1, "num is %s: %s", errstr, optarg);
+			break;
+		case 's':
+			socket_num = strtonum(optarg, 0, UINT_MAX, &errstr);
+			if (errstr != NULL)
+				errx(1, "socket is %s: %s", errstr, optarg);
 			break;
 		case 't':
 			run_time = strtonum(optarg, 0, UINT_MAX, &errstr);
@@ -133,21 +154,36 @@ main(int argc, char *argv[])
 
 	if (getrlimit(RLIMIT_NOFILE, &rlim) < 0)
 		err(1, "getrlimit");
-	rlim.rlim_max = fd_base + MAX(rlim.rlim_max, fd_num);
+	rlim.rlim_max = MAX(rlim.rlim_max, fd_base + fd_num);
 	rlim.rlim_cur = fd_base + fd_num;
 	if (setrlimit(RLIMIT_NOFILE, &rlim) < 0)
 		err(1, "setrlimit %llu", rlim.rlim_cur);
 
 	run = 1;
-	errno = pthread_create(&tsocket, NULL, thread_socket, &run);
-	if (errno)
-		err(1, "pthread_create socket");
-	errno = pthread_create(&tclose, NULL, thread_close, &run);
-	if (errno)
-		err(1, "pthread_create close");
-	errno = pthread_create(&tbind, NULL, thread_bind, &run);
-	if (errno)
-		err(1, "pthread_create bind");
+	tsocket = calloc(socket_num, sizeof(pthread_t));
+	if (tsocket == NULL)
+		err(1, "tsocket");
+	for (n = 0; n < socket_num; n++) {
+		errno = pthread_create(&tsocket[n], NULL, thread_socket, &run);
+		if (errno)
+			err(1, "pthread_create socket %u", n);
+	}
+	tclose = calloc(close_num, sizeof(pthread_t));
+	if (tclose == NULL)
+		err(1, "tclose");
+	for (n = 0; n < close_num; n++) {
+		errno = pthread_create(&tclose[n], NULL, thread_close, &run);
+		if (errno)
+			err(1, "pthread_create close %u", n);
+	}
+	tbind = calloc(bind_num, sizeof(pthread_t));
+	if (tbind == NULL)
+		err(1, "tbind");
+	for (n = 0; n < bind_num; n++) {
+		errno = pthread_create(&tbind[n], NULL, thread_bind, &run);
+		if (errno)
+			err(1, "pthread_create bind %u", n);
+	}
 
 	if (run_time > 0) {
 		if (sleep(run_time) < 0)
@@ -155,16 +191,21 @@ main(int argc, char *argv[])
 	}
 
 	run = 0;
-	errno = pthread_join(tsocket, NULL);
-	if (errno)
-		err(1, "pthread_join socket");
-	errno = pthread_join(tclose, NULL);
-	if (errno)
-		err(1, "pthread_join close");
-	errno = pthread_join(tbind, NULL);
-	if (errno)
-		err(1, "pthread_join bind");
-
+	for (n = 0; n < socket_num; n++) {
+		errno = pthread_join(tsocket[n], NULL);
+		if (errno)
+			err(1, "pthread_join socket %u", n);
+	}
+	for (n = 0; n < close_num; n++) {
+		errno = pthread_join(tclose[n], NULL);
+		if (errno)
+			err(1, "pthread_join close %u", n);
+	}
+	for (n = 0; n < bind_num; n++) {
+		errno = pthread_join(tbind[n], NULL);
+		if (errno)
+			err(1, "pthread_join bind %u", n);
+	}
 
 	return 0;
 }
