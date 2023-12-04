@@ -60,30 +60,35 @@ static void *
 thread_socket(void *arg)
 {
 	volatile int *run = arg;
+	unsigned long count;
 
-	while (*run) {
+	for (count = 0; *run; count++) {
 		socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	}
-	return NULL;
+
+	return (void *)count;
 }
 
 static void *
 thread_close(void *arg)
 {
 	volatile int *run = arg;
+	unsigned long count;
 	int fd;
 
-	while (*run) {
+	for (count = 0; *run; count++) {
 		fd = fd_base + arc4random_uniform(fd_num);
 		close(fd);
 	}
-	return NULL;
+
+	return (void *)count;
 }
 
 static void *
 thread_bind(void *arg)
 {
 	volatile int *run = arg;
+	unsigned long count;
 	int fd;
 	struct sockaddr_in sin;
 
@@ -92,11 +97,12 @@ thread_bind(void *arg)
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
-	while (*run) {
+	for (count = 0; *run; count++) {
 		fd = fd_base + arc4random_uniform(fd_num);
 		bind(fd, sintosa(&sin), sizeof(sin));
 	}
-	return NULL;
+
+	return (void *)count;
 }
 
 int
@@ -107,6 +113,7 @@ main(int argc, char *argv[])
 	const char *errstr;
 	int ch, run;
 	unsigned int n;
+	unsigned long socket_count, close_count, bind_count;
 
 	fd_base = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (fd_base < 0)
@@ -191,21 +198,35 @@ main(int argc, char *argv[])
 	}
 
 	run = 0;
+	socket_count = 0;
 	for (n = 0; n < socket_num; n++) {
-		errno = pthread_join(tsocket[n], NULL);
+		unsigned long count;
+
+		errno = pthread_join(tsocket[n], (void **)&count);
 		if (errno)
 			err(1, "pthread_join socket %u", n);
+		socket_count += count;
 	}
+	close_count = 0;
 	for (n = 0; n < close_num; n++) {
-		errno = pthread_join(tclose[n], NULL);
+		unsigned long count;
+
+		errno = pthread_join(tclose[n], (void **)&count);
 		if (errno)
 			err(1, "pthread_join close %u", n);
+		close_count += count;
 	}
+	bind_count = 0;
 	for (n = 0; n < bind_num; n++) {
-		errno = pthread_join(tbind[n], NULL);
+		unsigned long count;
+
+		errno = pthread_join(tbind[n], (void **)&count);
 		if (errno)
 			err(1, "pthread_join bind %u", n);
+		bind_count += count;
 	}
+	printf("count: socket %lu, close %lu, bind %lu\n",
+	    socket_count, close_count, bind_count);
 
 	return 0;
 }
