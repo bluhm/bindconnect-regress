@@ -34,19 +34,21 @@
 int fd_base;
 unsigned int fd_num = 100;
 unsigned int run_time = 10;
-unsigned int socket_num = 1, close_num = 1, bind_num = 1;
+unsigned int socket_num = 1, close_num = 1, bind_num = 1, connect_num = 0;
 
 static void __dead
 usage(void)
 {
 	fprintf(stderr,
-	    "bindstress [-b bind] [-c close] [-n num] [-s socket] [-t time]\n"
-	    "    -b bind    threads binding sockets, default %u\n"
-	    "    -c close   threads closing sockets, default %u\n"
-	    "    -n num     number of file descriptors, default %u\n"
-	    "    -s socket  threads creating sockets, default %u\n"
-	    "    -t time    run time in seconds, default %u\n",
-	    bind_num, close_num, fd_num, socket_num, run_time);
+	    "bindstress [-b bind] [-c close] [-n num] [-o connect]\n"
+	    "[-s socket] [-t time]\n"
+	    "    -b bind     threads binding sockets, default %u\n"
+	    "    -c close    threads closing sockets, default %u\n"
+	    "    -n num      number of file descriptors, default %u\n"
+	    "    -o connect  threads connecting sockets, default %u\n"
+	    "    -s socket   threads creating sockets, default %u\n"
+	    "    -t time     run time in seconds, default %u\n",
+	    bind_num, close_num, fd_num, connect_num, socket_num, run_time);
 	exit(2);
 }
 
@@ -105,21 +107,43 @@ thread_bind(void *arg)
 	return (void *)count;
 }
 
+static void *
+thread_connect(void *arg)
+{
+	volatile int *run = arg;
+	unsigned long count;
+	int fd;
+	struct sockaddr_in sin;
+
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_len = sizeof(sin);
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+	sin.sin_port = arc4random();
+
+	for (count = 0; *run; count++) {
+		fd = fd_base + arc4random_uniform(fd_num);
+		connect(fd, sintosa(&sin), sizeof(sin));
+	}
+
+	return (void *)count;
+}
+
 int
 main(int argc, char *argv[])
 {
 	struct rlimit rlim;
-	pthread_t *tsocket, *tbind, *tclose;
+	pthread_t *tsocket, *tclose, *tbind, *tconnect;
 	const char *errstr;
 	int ch, run;
 	unsigned int n;
-	unsigned long socket_count, close_count, bind_count;
+	unsigned long socket_count, close_count, bind_count, connect_count;
 
 	fd_base = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (fd_base < 0)
 		err(1, "socket fd_base");
 
-	while ((ch = getopt(argc, argv, "b:c:n:s:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "b:c:n:o:s:t:")) != -1) {
 		switch (ch) {
 		case 'b':
 			bind_num = strtonum(optarg, 0, UINT_MAX, &errstr);
@@ -136,6 +160,11 @@ main(int argc, char *argv[])
 			    &errstr);
 			if (errstr != NULL)
 				errx(1, "num is %s: %s", errstr, optarg);
+			break;
+		case 'o':
+			connect_num = strtonum(optarg, 0, UINT_MAX, &errstr);
+			if (errstr != NULL)
+				errx(1, "connect is %s: %s", errstr, optarg);
 			break;
 		case 's':
 			socket_num = strtonum(optarg, 0, UINT_MAX, &errstr);
@@ -191,6 +220,15 @@ main(int argc, char *argv[])
 		if (errno)
 			err(1, "pthread_create bind %u", n);
 	}
+	tconnect = calloc(connect_num, sizeof(pthread_t));
+	if (tconnect == NULL)
+		err(1, "tconnect");
+	for (n = 0; n < connect_num; n++) {
+		errno = pthread_create(&tconnect[n], NULL, thread_connect,
+		    &run);
+		if (errno)
+			err(1, "pthread_create connect %u", n);
+	}
 
 	if (run_time > 0) {
 		if (sleep(run_time) < 0)
@@ -225,8 +263,17 @@ main(int argc, char *argv[])
 			err(1, "pthread_join bind %u", n);
 		bind_count += count;
 	}
-	printf("count: socket %lu, close %lu, bind %lu\n",
-	    socket_count, close_count, bind_count);
+	connect_count = 0;
+	for (n = 0; n < connect_num; n++) {
+		unsigned long count;
+
+		errno = pthread_join(tconnect[n], (void **)&count);
+		if (errno)
+			err(1, "pthread_join connect %u", n);
+		connect_count += count;
+	}
+	printf("count: socket %lu, close %lu, bind %lu connect %lu\n",
+	    socket_count, close_count, bind_count, connect_count);
 
 	return 0;
 }

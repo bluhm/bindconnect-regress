@@ -17,4 +17,8 @@ REGRESS_TARGETS +=	run-bindstress-bind
 run-bindstress-bind:
 	${SUDO} time ${KTRACE} ./bindstress -n 10 -s 2 -b 5 -c 1
 
+REGRESS_TARGETS +=	run-bindstress-connect
+run-bindstress-connect:
+	${SUDO} time ${KTRACE} ./bindstress -n 10 -s 2 -b 5 -c 1 -o 3
+
 .include <bsd.regress.mk>
