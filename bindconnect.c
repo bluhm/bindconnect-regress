@@ -1,4 +1,4 @@
-/*	$OpenBSD: bindconnect.c,v 1.1 2023/12/06 14:41:52 bluhm Exp $	*/
+/*	$OpenBSD: bindconnect.c,v 1.2 2023/12/06 22:57:14 bluhm Exp $	*/
 
 /*
  * Copyright (c) 2023 Alexander Bluhm <bluhm@openbsd.org>
