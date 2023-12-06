@@ -19,6 +19,8 @@
 #include <sys/resource.h>
 #include <sys/socket.h>
 
+#include <arpa/inet.h>
+
 #include <netinet/in.h>
 
 #include <err.h>
@@ -32,24 +34,27 @@
 #define MAX(a, b)	((a) > (b) ? (a) : (b))
 
 int fd_base;
-unsigned int fd_num = 100;
+unsigned int fd_num = 128;
 unsigned int run_time = 10;
 unsigned int socket_num = 1, close_num = 1, bind_num = 1, connect_num = 1;
 int reuse_port = 0;
+struct in_addr addr, mask;
+int prefix = -1;
 
 static void __dead
 usage(void)
 {
 	fprintf(stderr,
-	    "bindconnect [-r] [-b bind] [-c connect] [-n num] [-o close]\n"
-	    "[-s socket] [-t time]\n"
-	    "    -b bind     threads binding sockets, default %u\n"
-	    "    -c connect  threads connecting sockets, default %u\n"
-	    "    -n num      number of file descriptors, default %u\n"
-	    "    -o close    threads closing sockets, default %u\n"
-	    "    -r          set reuse port socket option\n"
-	    "    -s socket   threads creating sockets, default %u\n"
-	    "    -t time     run time in seconds, default %u\n",
+	    "bindconnect [-r] [-b bind] [-c connect] [-N addr/net] [-n num]\n"
+	    "[-o close] [-s socket] [-t time]\n"
+	    "    -b bind      threads binding sockets, default %u\n"
+	    "    -c connect   threads connecting sockets, default %u\n"
+	    "    -N addr/net  connect to any address within network\n"
+	    "    -n num       number of file descriptors, default %u\n"
+	    "    -o close     threads closing sockets, default %u\n"
+	    "    -r           set reuse port socket option\n"
+	    "    -s socket    threads creating sockets, default %u\n"
+	    "    -t time      run time in seconds, default %u\n",
 	    bind_num, connect_num, fd_num, close_num, socket_num, run_time);
 	exit(2);
 }
@@ -58,6 +63,15 @@ static inline struct sockaddr *
 sintosa(struct sockaddr_in *sin)
 {
 	return ((struct sockaddr *)(sin));
+}
+
+static void
+in_prefixlen2mask(struct in_addr *maskp, int plen)
+{
+	if (plen == 0)
+		maskp->s_addr = 0;
+	else
+		maskp->s_addr = htonl(0xffffffff << (32 - plen));
 }
 
 static void *
@@ -108,6 +122,9 @@ thread_bind(void *arg)
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
+	if (prefix >= 0)
+		sin.sin_addr = addr;
+
 	for (count = 0; *run; count++) {
 		fd = fd_base + arc4random_uniform(fd_num);
 		bind(fd, sintosa(&sin), sizeof(sin));
@@ -129,8 +146,15 @@ thread_connect(void *arg)
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 
+	if (prefix >= 0)
+		sin.sin_addr = addr;
+
 	for (count = 0; *run; count++) {
 		fd = fd_base + arc4random_uniform(fd_num);
+		if (prefix >=0 && prefix != 32) {
+			sin.sin_addr.s_addr &= mask.s_addr;
+			sin.sin_addr.s_addr |= ~mask.s_addr & arc4random();
+		}
 		sin.sin_port = arc4random();
 		connect(fd, sintosa(&sin), sizeof(sin));
 	}
@@ -143,7 +167,7 @@ main(int argc, char *argv[])
 {
 	struct rlimit rlim;
 	pthread_t *tsocket, *tclose, *tbind, *tconnect;
-	const char *errstr;
+	const char *errstr, *addr_net = NULL;
 	int ch, run;
 	unsigned int n;
 	unsigned long socket_count, close_count, bind_count, connect_count;
@@ -152,7 +176,7 @@ main(int argc, char *argv[])
 	if (fd_base < 0)
 		err(1, "socket fd_base");
 
-	while ((ch = getopt(argc, argv, "b:c:n:o:rs:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "b:c:N:n:o:rs:t:")) != -1) {
 		switch (ch) {
 		case 'b':
 			bind_num = strtonum(optarg, 0, UINT_MAX, &errstr);
@@ -163,6 +187,9 @@ main(int argc, char *argv[])
 			connect_num = strtonum(optarg, 0, UINT_MAX, &errstr);
 			if (errstr != NULL)
 				errx(1, "connect is %s: %s", errstr, optarg);
+			break;
+		case 'N':
+			addr_net = optarg;
 			break;
 		case 'n':
 			fd_num = strtonum(optarg, 1, INT_MAX - fd_base,
@@ -206,6 +233,13 @@ main(int argc, char *argv[])
 	rlim.rlim_cur = fd_base + fd_num;
 	if (setrlimit(RLIMIT_NOFILE, &rlim) < 0)
 		err(1, "setrlimit %llu", rlim.rlim_cur);
+
+	if (addr_net != NULL) {
+		prefix = inet_net_pton(AF_INET, addr_net, &addr, sizeof(addr));
+		if (prefix < 0)
+			err(1, "inet_net_pton %s", addr_net);
+		in_prefixlen2mask(&mask, prefix);
+	}
 
 	run = 1;
 	tsocket = calloc(socket_num, sizeof(pthread_t));
