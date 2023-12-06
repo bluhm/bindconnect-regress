@@ -35,17 +35,19 @@ int fd_base;
 unsigned int fd_num = 100;
 unsigned int run_time = 10;
 unsigned int socket_num = 1, close_num = 1, bind_num = 1, connect_num = 1;
+int reuse_port = 0;
 
 static void __dead
 usage(void)
 {
 	fprintf(stderr,
-	    "bindconnect [-b bind] [-c connect] [-n num] [-o close]\n"
+	    "bindconnect [-r] [-b bind] [-c connect] [-n num] [-o close]\n"
 	    "[-s socket] [-t time]\n"
 	    "    -b bind     threads binding sockets, default %u\n"
 	    "    -c connect  threads connecting sockets, default %u\n"
 	    "    -n num      number of file descriptors, default %u\n"
 	    "    -o close    threads closing sockets, default %u\n"
+	    "    -r          set reuse port socket option\n"
 	    "    -s socket   threads creating sockets, default %u\n"
 	    "    -t time     run time in seconds, default %u\n",
 	    bind_num, connect_num, fd_num, close_num, socket_num, run_time);
@@ -63,9 +65,16 @@ thread_socket(void *arg)
 {
 	volatile int *run = arg;
 	unsigned long count;
+	int fd;
 
 	for (count = 0; *run; count++) {
-		socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+		int opt;
+
+		fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+		if (fd < 0 || !reuse_port)
+			continue;
+		opt = 1;
+		setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
 	}
 
 	return (void *)count;
@@ -119,10 +128,10 @@ thread_connect(void *arg)
 	sin.sin_len = sizeof(sin);
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	sin.sin_port = arc4random();
 
 	for (count = 0; *run; count++) {
 		fd = fd_base + arc4random_uniform(fd_num);
+		sin.sin_port = arc4random();
 		connect(fd, sintosa(&sin), sizeof(sin));
 	}
 
@@ -143,7 +152,7 @@ main(int argc, char *argv[])
 	if (fd_base < 0)
 		err(1, "socket fd_base");
 
-	while ((ch = getopt(argc, argv, "b:c:n:o:s:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "b:c:n:o:rs:t:")) != -1) {
 		switch (ch) {
 		case 'b':
 			bind_num = strtonum(optarg, 0, UINT_MAX, &errstr);
@@ -165,6 +174,9 @@ main(int argc, char *argv[])
 			close_num = strtonum(optarg, 0, UINT_MAX, &errstr);
 			if (errstr != NULL)
 				errx(1, "close is %s: %s", errstr, optarg);
+			break;
+		case 'r':
+			reuse_port = 1;
 			break;
 		case 's':
 			socket_num = strtonum(optarg, 0, UINT_MAX, &errstr);

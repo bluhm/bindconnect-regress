@@ -36,4 +36,8 @@ REGRESS_TARGETS +=	run-100000
 run-100000:
 	${SUDO} time ${KTRACE} ./${PROG} -n 100000 -s 2 -o 1 -b 3 -c 3
 
+REGRESS_TARGETS +=	run-reuseport
+run-reuseport:
+	time ${KTRACE} ./${PROG} -n 10 -s 2 -o 1 -b 3 -c 3 -r
+
 .include <bsd.regress.mk>
