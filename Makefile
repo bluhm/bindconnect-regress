@@ -15,14 +15,14 @@ run-default:
 
 REGRESS_TARGETS +=	run-bind
 run-bind:
-	${SUDO} time ${KTRACE} ./${PROG} -n 10 -s 2 -b 5 -c 1 -o 0
+	${SUDO} time ${KTRACE} ./${PROG} -n 10 -s 2 -o 1 -b 5 -c 0
 
 REGRESS_TARGETS +=	run-connect
 run-connect:
-	${SUDO} time ${KTRACE} ./${PROG} -n 10 -s 2 -b 0 -c 1 -o 5
+	${SUDO} time ${KTRACE} ./${PROG} -n 10 -s 2 -o 1 -b 0 -c 5
 
 REGRESS_TARGETS +=	run-bind-connect
 run-bind-connect:
-	${SUDO} time ${KTRACE} ./${PROG} -n 10 -s 2 -b 5 -c 1 -o 3
+	${SUDO} time ${KTRACE} ./${PROG} -n 10 -s 2 -o 1 -b 3 -c 3
 
 .include <bsd.regress.mk>

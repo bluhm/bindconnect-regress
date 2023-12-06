@@ -1,10 +1,10 @@
 Stress test bind(2) and connect(2) system calls in OpenBSD regress.
 
-bindconnect [-b bind] [-c close] [-n num] [-o connect] [-s socket] [-t time]
+bindconnect [-b bind] [-c connect] [-n num] [-o close] [-s socket] [-t time]
     -b bind     threads binding sockets, default 1
-    -c close    threads closing sockets, default 1
+    -c connect  threads connecting sockets, default 1
     -n num      number of file descriptors, default 100
-    -o connect  threads connecting sockets, default 1
+    -o close    threads closing sockets, default 1
     -s socket   threads creating sockets, default 1
     -t time     run time in seconds, default 10
 

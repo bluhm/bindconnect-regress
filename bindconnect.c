@@ -40,15 +40,15 @@ static void __dead
 usage(void)
 {
 	fprintf(stderr,
-	    "bindconnect [-b bind] [-c close] [-n num] [-o connect]\n"
+	    "bindconnect [-b bind] [-c connect] [-n num] [-o close]\n"
 	    "[-s socket] [-t time]\n"
 	    "    -b bind     threads binding sockets, default %u\n"
-	    "    -c close    threads closing sockets, default %u\n"
+	    "    -c connect  threads connecting sockets, default %u\n"
 	    "    -n num      number of file descriptors, default %u\n"
-	    "    -o connect  threads connecting sockets, default %u\n"
+	    "    -o close    threads closing sockets, default %u\n"
 	    "    -s socket   threads creating sockets, default %u\n"
 	    "    -t time     run time in seconds, default %u\n",
-	    bind_num, close_num, fd_num, connect_num, socket_num, run_time);
+	    bind_num, connect_num, fd_num, close_num, socket_num, run_time);
 	exit(2);
 }
 
@@ -151,9 +151,9 @@ main(int argc, char *argv[])
 				errx(1, "bind is %s: %s", errstr, optarg);
 			break;
 		case 'c':
-			close_num = strtonum(optarg, 0, UINT_MAX, &errstr);
+			connect_num = strtonum(optarg, 0, UINT_MAX, &errstr);
 			if (errstr != NULL)
-				errx(1, "close is %s: %s", errstr, optarg);
+				errx(1, "connect is %s: %s", errstr, optarg);
 			break;
 		case 'n':
 			fd_num = strtonum(optarg, 1, INT_MAX - fd_base,
@@ -162,9 +162,9 @@ main(int argc, char *argv[])
 				errx(1, "num is %s: %s", errstr, optarg);
 			break;
 		case 'o':
-			connect_num = strtonum(optarg, 0, UINT_MAX, &errstr);
+			close_num = strtonum(optarg, 0, UINT_MAX, &errstr);
 			if (errstr != NULL)
-				errx(1, "connect is %s: %s", errstr, optarg);
+				errx(1, "close is %s: %s", errstr, optarg);
 			break;
 		case 's':
 			socket_num = strtonum(optarg, 0, UINT_MAX, &errstr);
