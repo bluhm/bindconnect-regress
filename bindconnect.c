@@ -34,7 +34,7 @@
 int fd_base;
 unsigned int fd_num = 100;
 unsigned int run_time = 10;
-unsigned int socket_num = 1, close_num = 1, bind_num = 1, connect_num = 0;
+unsigned int socket_num = 1, close_num = 1, bind_num = 1, connect_num = 1;
 
 static void __dead
 usage(void)
@@ -272,7 +272,7 @@ main(int argc, char *argv[])
 			err(1, "pthread_join connect %u", n);
 		connect_count += count;
 	}
-	printf("count: socket %lu, close %lu, bind %lu connect %lu\n",
+	printf("count: socket %lu, close %lu, bind %lu, connect %lu\n",
 	    socket_count, close_count, bind_count, connect_count);
 
 	return 0;
