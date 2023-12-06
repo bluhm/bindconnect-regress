@@ -7,9 +7,14 @@ WARNINGS=	yes
 
 CLEANFILES=	ktrace.out
 
-${REGRESS_TARGETS}: ${PROG}
+REGRESS_ROOT_TARGETS =	setup-maxfiles run-100000
 
-REGRESS_ROOT_TARGETS =	run-100000
+REGRESS_SETUP_ONCE =	setup-maxfiles
+setup-maxfiles:
+	[[ $$(sysctl -n kern.maxfiles) -ge 110000 ]] || \
+	    ${SUDO} sysctl kern.maxfiles=110000
+
+REGRESS_SETUP =		${PROG}
 
 REGRESS_TARGETS +=	run-default
 run-default:
