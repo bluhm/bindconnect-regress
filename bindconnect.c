@@ -40,7 +40,7 @@ static void __dead
 usage(void)
 {
 	fprintf(stderr,
-	    "bindstress [-b bind] [-c close] [-n num] [-o connect]\n"
+	    "bindconnect [-b bind] [-c close] [-n num] [-o connect]\n"
 	    "[-s socket] [-t time]\n"
 	    "    -b bind     threads binding sockets, default %u\n"
 	    "    -c close    threads closing sockets, default %u\n"

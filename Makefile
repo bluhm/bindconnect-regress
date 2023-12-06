@@ -1,6 +1,6 @@
 #	$OpenBSD$
 
-PROG=		bindstress
+PROG=		bindconnect
 LDADD=		-lpthread
 DPADD=		${LIBPTHREAD}
 WARNINGS=	yes
@@ -9,16 +9,16 @@ CLEANFILES=	ktrace.out
 
 ${REGRESS_TARGETS}: ${PROG}
 
-REGRESS_TARGETS +=	run-bindstress-default
-run-bindstress-default:
-	${SUDO} time ${KTRACE} ./bindstress
+REGRESS_TARGETS +=	run-default
+run-default:
+	${SUDO} time ${KTRACE} ./${PROG}
 
-REGRESS_TARGETS +=	run-bindstress-bind
-run-bindstress-bind:
-	${SUDO} time ${KTRACE} ./bindstress -n 10 -s 2 -b 5 -c 1
+REGRESS_TARGETS +=	run-bind
+run-bind:
+	${SUDO} time ${KTRACE} ./${PROG} -n 10 -s 2 -b 5 -c 1
 
-REGRESS_TARGETS +=	run-bindstress-connect
-run-bindstress-connect:
-	${SUDO} time ${KTRACE} ./bindstress -n 10 -s 2 -b 5 -c 1 -o 3
+REGRESS_TARGETS +=	run-connect
+run-connect:
+	${SUDO} time ${KTRACE} ./${PROG} -n 10 -s 2 -b 5 -c 1 -o 3
 
 .include <bsd.regress.mk>
