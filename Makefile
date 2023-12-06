@@ -1,4 +1,4 @@
-#	$OpenBSD$
+#	$OpenBSD: Makefile,v 1.1 2023/12/06 14:41:52 bluhm Exp $
 
 PROG=		bindconnect
 LDADD=		-lpthread
