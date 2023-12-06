@@ -245,6 +245,8 @@ main(int argc, char *argv[])
 			err(1, "pthread_join socket %u", n);
 		socket_count += count;
 	}
+	free(tsocket);
+
 	close_count = 0;
 	for (n = 0; n < close_num; n++) {
 		unsigned long count;
@@ -254,6 +256,8 @@ main(int argc, char *argv[])
 			err(1, "pthread_join close %u", n);
 		close_count += count;
 	}
+	free(tclose);
+
 	bind_count = 0;
 	for (n = 0; n < bind_num; n++) {
 		unsigned long count;
@@ -263,6 +267,8 @@ main(int argc, char *argv[])
 			err(1, "pthread_join bind %u", n);
 		bind_count += count;
 	}
+	free(tbind);
+
 	connect_count = 0;
 	for (n = 0; n < connect_num; n++) {
 		unsigned long count;
@@ -272,6 +278,8 @@ main(int argc, char *argv[])
 			err(1, "pthread_join connect %u", n);
 		connect_count += count;
 	}
+	free(tconnect);
+
 	printf("count: socket %lu, close %lu, bind %lu, connect %lu\n",
 	    socket_count, close_count, bind_count, connect_count);
 
