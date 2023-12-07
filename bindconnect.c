@@ -132,7 +132,8 @@ mask_sockaddr(union sockaddr_union *su)
 		if (prefix >=0 && prefix != 32) {
 			su->su_sin.sin_addr.s_addr &=
 			    mask.au_inaddr.s_addr;
-			su->su_sin.sin_addr.s_addr |=
+			/* do only 8 bits variation, routes should be reused */
+			su->su_sin.sin_addr.s_addr |= htonl(255) &
 			    ~mask.au_inaddr.s_addr & arc4random();
 		}
 	}
@@ -146,13 +147,8 @@ mask_sockaddr(union sockaddr_union *su)
 			    mask.au_in6addr.s6_addr32[2];
 			su->su_sin6.sin6_addr.s6_addr32[3] &=
 			    mask.au_in6addr.s6_addr32[3];
-			su->su_sin6.sin6_addr.s6_addr32[0] |=
-			    ~mask.au_in6addr.s6_addr32[0] & arc4random();
-			su->su_sin6.sin6_addr.s6_addr32[1] |=
-			    ~mask.au_in6addr.s6_addr32[1] & arc4random();
-			su->su_sin6.sin6_addr.s6_addr32[2] |=
-			    ~mask.au_in6addr.s6_addr32[2] & arc4random();
-			su->su_sin6.sin6_addr.s6_addr32[3] |=
+			/* do only 8 bits variation, routes should be reused */
+			su->su_sin6.sin6_addr.s6_addr32[3] |= htonl(255) &
 			    ~mask.au_in6addr.s6_addr32[3] & arc4random();
 		}
 	}
@@ -358,7 +354,7 @@ main(int argc, char *argv[])
 		af = AF_INET;
 	else if (strcmp(family, "inet6") == 0)
 		af = AF_INET6;
-	else 
+	else
 		errx(1, "bad address family %s", family);
 
 	/* split addr/net into addr, mask, prefix */
