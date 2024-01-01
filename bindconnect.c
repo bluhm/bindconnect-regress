@@ -63,7 +63,8 @@ usage(void)
 {
 	fprintf(stderr,
 	    "bindconnect [-r] [-b bind] [-c connect] [-d delroute]\n"
-	    "[-N addr/net] [-n num] [-o close] [-s socket] [-t time]\n"
+	    "[-f family] [-N addr/net] [-n num] [-o close] [-s socket]\n"
+	    "[-t time]\n"
 	    "    -b bind      threads binding sockets, default %u\n"
 	    "    -c connect   threads connecting sockets, default %u\n"
 	    "    -d delroute  threads deleting cloned routes, default %u\n"
