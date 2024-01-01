@@ -31,7 +31,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#define MAX(a, b)	((a) > (b) ? (a) : (b))
+#define MAXIMUM(a, b)	((a) > (b) ? (a) : (b))
 
 #define s6_addr8	__u6_addr.__u6_addr8
 #define s6_addr16	__u6_addr.__u6_addr16
@@ -407,7 +407,7 @@ main(int argc, char *argv[])
 
 	if (getrlimit(RLIMIT_NOFILE, &rlim) < 0)
 		err(1, "getrlimit");
-	rlim.rlim_max = MAX(rlim.rlim_max, fd_base + fd_num);
+	rlim.rlim_max = MAXIMUM(rlim.rlim_max, fd_base + fd_num);
 	rlim.rlim_cur = fd_base + fd_num;
 	if (setrlimit(RLIMIT_NOFILE, &rlim) < 0)
 		err(1, "setrlimit %llu", rlim.rlim_cur);
