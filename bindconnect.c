@@ -166,7 +166,7 @@ thread_socket(void *arg)
 	for (count = 0; *run; count++) {
 		int opt;
 
-		fd = socket(af, type, proto);
+		fd = socket(af, type | SOCK_NONBLOCK, proto);
 		if (fd < 0 || !reuse_port)
 			continue;
 		opt = 1;
