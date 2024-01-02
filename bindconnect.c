@@ -72,7 +72,7 @@ usage(void)
 	    "    -N addr/net  connect to any address within network\n"
 	    "    -n num       number of file descriptors, default %u\n"
 	    "    -o close     threads closing sockets, default %u\n"
-	    "    -p proto     protocol udp or raw number, default udp\n"
+	    "    -p proto     protocol udp, tcp, name or number, default udp\n"
 	    "    -r           set reuse port socket option\n"
 	    "    -s socket    threads creating sockets, default %u\n"
 	    "    -t time      run time in seconds, default %u\n",
